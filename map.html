@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Display navigation directions</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.2.0/mapbox-gl-directions.js"></script>
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.2.0/mapbox-gl-directions.css" type="text/css">
+<div id="map"></div>
+
+<!-- 下拉菜单 -->
+<div style="position: absolute; z-index: 1; right: 10px; bottom: 10px; background: white; padding: 10px;">
+    <select id="group-select">
+        <option value="">Select a group...</option>
+    </select>
+</div>
+
+<div style="position: absolute; z-index: 1; right: 50px; top: 10px; background: white; padding: 10px;">
+    <input type="text" id="search-box" placeholder="Search census tract...">
+</div>
+
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibGlhbmd0YW8xMjE2IiwiYSI6ImNraWZ4cmVkYTA4ZmUycW10eGk3ZTFuajEifQ.sAZWQbIf5fYoDyAKBrIAFw';
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-73.79953582912495, 40.70330291522234],
+        zoom: 12
+    });
+
+    map.addControl(
+    new MapboxDirections({
+        accessToken: mapboxgl.accessToken,
+        profile: 'mapbox/driving', // 限定为仅驾车模式
+        alternatives: true, // 尝试请求备选路线，但请注意，实际可用性取决于Mapbox服务的响应
+        geometries: 'geojson'
+    }),
+    'top-left'
+);
+
+
+
+map.on('load', function () {
+    fetch('https://raw.githubusercontent.com/liangtao1216/Citibike_Project/main/data/ct2016Poly.geojson')
+        .then(response => response.json())
+        .then(data => {
+            // Populate dropdown with groups from GeoJSON
+            const uniqueGroups = new Set(data.features.map(feature => feature.properties.Group));
+            const selectElement = document.getElementById('group-select');
+
+            uniqueGroups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                option.textContent = group;
+                selectElement.appendChild(option);
+            });
+
+            // Function to update the map based on the selected group
+            function updateMap(selectedGroup) {
+                const filteredData = {
+                    ...data,
+                    features: data.features.filter(feature => feature.properties.Group === selectedGroup)
+                };
+
+                // Remove existing layers and sources if they exist
+                if (map.getLayer('my-layer-polygons')) {
+                    map.removeLayer('my-layer-polygons');
+                }
+                if (map.getLayer('my-layer-labels')) {
+                    map.removeLayer('my-layer-labels');
+                }
+                if (map.getSource('my-source')) {
+                    map.removeSource('my-source');
+                }
+
+                // Add new source and layers for the selected group
+                map.addSource('my-source', {
+                    'type': 'geojson',
+                    'data': filteredData
+                });
+
+                map.addLayer({
+                    'id': 'my-layer-polygons',
+                    'type': 'line', // or 'fill' if dealing with polygons
+                    'source': 'my-source',
+                    'layout': {},
+                    'paint': {
+                        'line-color': '#888',
+                        'line-width': 2
+                    }
+                });
+
+                map.addLayer({
+                    'id': 'my-layer-labels',
+                    'type': 'symbol',
+                    'source': 'my-source',
+                    'layout': {
+                        'text-field': ['get', 'NAME'],
+                        'text-size': 12,
+                        'text-anchor': 'top'
+                    },
+                    'paint': {
+                        'text-color': '#000000'
+                    }
+                });
+            }
+
+            // Handle dropdown changes
+            selectElement.addEventListener('change', function() {
+                updateMap(this.value);
+            });
+        });
+
+    // Code for adding 'site' source and layers moved here to ensure it's added last
+    map.addSource('site', {
+        'type': 'geojson',
+        'data': 'https://raw.githubusercontent.com/liangtao1216/Citibike_Project/main/data/site.geojson'
+    });
+
+    map.addLayer({
+        'id': 'site-layer',
+        'type': 'line', // or 'fill' if dealing with polygons
+        'source': 'site',
+        'layout': {},
+        'paint': {
+            'line-color': '#FF0000',
+            'line-width': 3
+        }
+    });
+
+    map.addLayer({
+        'id': 'site-labels',
+        'type': 'symbol',
+        'source': 'site',
+        'layout': {
+            'text-field': ['get', 'DestiCT'],
+            'text-size': 14,
+            'text-anchor': 'top'
+        },
+        'paint': {
+            'text-color': '#FF0000'
+        }
+    });
+    // 在所有图层添加完毕后，使用 moveLayer 将 'site' 和 'site-labels' 移至最上层
+    map.moveLayer('site-layer');
+    map.moveLayer('site-labels');
+});
+
+
+document.getElementById('search-box').addEventListener('keyup', function(e) {
+    if (e.keyCode === 13) { // 仅当按下回车键时才执行以下代码
+        const searchTerm = e.target.value; // 获取搜索框内的内容
+
+        // 从地图源中获取所有要素
+        const features = map.querySourceFeatures('my-source', {
+            sourceLayer: 'my-layer-polygons' // 替换为你的实际图层名称，如果你的GeoJSON直接作为数据源，可能不需要这个
+        });
+
+        // 查找与搜索条件匹配的特征
+        const foundFeature = features.find(feature => feature.properties['NAME'] === searchTerm);
+
+        if (foundFeature) {
+            // 如果找到了匹配的特征，计算其边界框并将地图视图移动到该边界框
+            const bounds = coordinatesToBounds(foundFeature.geometry.coordinates);
+            map.fitBounds(bounds, { padding: 20 }); // 使用一定的内边距来更好地展示多边形
+            
+            // 你也可以添加额外的逻辑来高亮显示找到的特征
+        }
+    }
+});
+
+// 辅助函数，将多边形坐标转换为边界框
+function coordinatesToBounds(coordinates) {
+    let bounds = new mapboxgl.LngLatBounds(coordinates[0][0], coordinates[0][0]);
+
+    // 这里假设你的多边形是简单的并且不是MultiPolygon
+    coordinates.forEach(ring => {
+        ring.forEach(coord => {
+            bounds.extend(coord);
+        });
+    });
+
+    return bounds;
+}
+
+
+</script>
+
+</body>
+</html>
