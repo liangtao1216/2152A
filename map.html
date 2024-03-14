@@ -178,7 +178,7 @@ document.getElementById('search-box').addEventListener('keyup', function(e) {
         if (foundFeature) {
             // 如果找到了匹配的特征，计算其边界框并将地图视图移动到该边界框
             const bounds = coordinatesToBounds(foundFeature.geometry.coordinates);
-            map.fitBounds(bounds, { padding: 20 }); // 使用一定的内边距来更好地展示多边形
+            map.fitBounds(bounds, { padding: 200 }); // 使用一定的内边距来更好地展示多边形
             
             // 你也可以添加额外的逻辑来高亮显示找到的特征
         }
