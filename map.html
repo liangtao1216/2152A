@@ -17,15 +17,22 @@ body { margin: 0; padding: 0; }
 <div id="map"></div>
 
 <!-- 下拉菜单 -->
-<div style="position: absolute; z-index: 1; right: 30px; top: 50px; background: white; padding: 10px;">
-    <select id="group-select">
-        <option value="">Select a group...</option>
-    </select>
+<div style="position: absolute; z-index: 1; right: 30px; top: 10px; background: white; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; width: 300px; height: auto; font-family: Arial, sans-serif; font-size: 14px;">
+    <div style="margin-bottom: 10px;">
+        <input type="text" id="search-box" placeholder="Search census tract..." style="box-sizing: border-box; width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: inherit;">
+    </div>
+    <div style="margin-bottom: 10px;">
+        <select id="group-select" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: inherit;">
+            <option value="">Select a group...</option>
+        </select>
+    </div>
+    <div>
+        <input type="checkbox" id="toggle-site" checked style="margin-right: 10px; font-family: inherit; font-size: inherit;">
+        <label for="toggle-site" style="font-family: inherit; font-size: inherit;">Show Site Layer</label>
+    </div>
 </div>
 
-<div style="position: absolute; z-index: 1; right: 30px; top: 10px; background: white; padding: 10px;">
-    <input type="text" id="search-box" placeholder="Search census tract...">
-</div>
+
 
 
 <script>
@@ -133,7 +140,7 @@ map.on('load', function () {
         'layout': {},
         'paint': {
             'line-color': '#FF0000',
-            'line-width': 3
+            'line-width': 5
         }
     });
 
@@ -191,6 +198,12 @@ function coordinatesToBounds(coordinates) {
 
     return bounds;
 }
+
+document.getElementById('toggle-site').addEventListener('change', function() {
+    const visibility = this.checked ? 'visible' : 'none';
+    map.setLayoutProperty('site-layer', 'visibility', visibility);
+    map.setLayoutProperty('site-labels', 'visibility', visibility);
+});
 
 
 </script>
